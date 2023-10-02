@@ -1,0 +1,28 @@
+{
+    "name":"p-s-connector",
+    "config":{
+        "topics": "mysql.test.users",
+        "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+        "connection.url": "jdbc:postgresql://pg13:5432/test",
+        "connection.user": "postgres",
+        "connection.password": "postgres",
+        "tasks.max": "1",
+        "auto.create": true,
+        "auto.evolve": true,
+        "insert.mode":"upsert",
+        "batch.size": 3000,
+        "delete.enabled": true,
+        "pk.mode": "record_key",
+        "pk.fields": "id",
+        "transforms":"ExtractField,repTopic,TimestampConverter",
+        "transforms.ExtractField.type":"org.apache.kafka.connect.transforms.ExtractField$Value",
+        "transforms.ExtractField.field":"after",
+        "transforms.repTopic.type":"org.apache.kafka.connect.transforms.RegexRouter",
+        "transforms.repTopic.regex":"(.*.test).(.*)",
+        "transforms.repTopic.replacement":"$2",
+        "transforms.TimestampConverter.type": "com.github.howareyouo.kafka.connect.transforms.TimestampConverter$Value",
+        "transforms.TimestampConverter.target.type": "Timestamp",
+        "transforms.TimestampConverter.format":"yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "transforms.TimestampConverter.fields": "ol_delivery_d,o_entry_d,h_date,c_since"
+  }
+}

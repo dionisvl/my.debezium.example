@@ -1,0 +1,93 @@
+version: '3'
+services:
+  dbz-zookeeper:
+    image: debezium/zookeeper:2.3.4.Final
+    container_name: dbz-zookeeper
+    ports:
+     - 2181:2181
+     - 2888:2888
+     - 3888:3888
+    networks:
+      - dbz-network
+  dbz-kafka:
+    image: debezium/kafka:2.3.4.Final
+    container_name: dbz-kafka
+    ports:
+     - 9092:9092
+    depends_on:
+      - dbz-zookeeper
+    environment:
+      - ZOOKEEPER_CONNECT=dbz-zookeeper:2181
+      - KAFKA_MAX_REQUEST=524288000
+      - KAFKA_MESSAGE_MAX_BYTES=524288000
+      - KAFKA_BUFFER_MEMORY=629145600
+      - KAFKA_SOCKET_REQUEST_MAX_BYTES=629145600
+    networks:
+      - dbz-network
+  pg13:
+    container_name: pg13
+    image: postgres:13.5
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DATABASE=test
+    networks:
+      - dbz-network
+    privileged: true
+  mysql:
+    container_name: mysql
+    build:
+      context: ./mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=debezium
+      - MYSQL_USER=mysqluser
+      - MYSQL_PASSWORD=mysqlpw
+      - MYSQL_DATABASE=test
+    networks:
+      - dbz-network
+    volumes:
+      - /mysql-to-postgres/mysql/mysql.cnf:/etc/mysql/conf.d/source/mysql.cnf
+  dbz-connect:
+    container_name: dbz-connect
+    image: registry.cn-qingdao.aliyuncs.com/xfopen/connect:1.7
+    ports:
+      - 8083:8083
+      - 5005:5005
+    depends_on:
+      - dbz-kafka
+    environment:
+        - BOOTSTRAP_SERVERS=dbz-kafka:9092
+        - CONNECT_GROUP_ID:compose-connect-group
+        - CONFIG_STORAGE_TOPIC=my_connect_configs
+        - OFFSET_STORAGE_TOPIC=my_connect_offsets
+        - STATUS_STORAGE_TOPIC=my_connect_statuses
+        - CONNECT_MAX_REQUEST_SIZE=524288000
+        - CONNECT_MESSAGE_MAX_BYTES=524288000
+        - CONNECT_FETCH_MESSAGE_MAX_BYTES=629145600
+        - CONNECT_PRODUCER_MAX_REQUEST_SIZE=524288000
+        - CONNECT_BUFFER_MEMORY=629145600
+        - CONNECT_PRODUCER_BUFFER_MEMORY=524288000
+        - CONNECT_SOCKET_REQUEST_MAX_BYTES=629145600
+        - CONNECT_OFFSET_FLUSH_INTERVAL_MS:10000
+        - CONNECT_TOPIC_CREATION_DEFAULT_REPLICATION_FACTOR:3
+        - CONNECT_TOPIC_CREATION_DEFAULT_PARTITIONS:3
+    networks:
+      - dbz-network
+  debezium-ui:
+    container_name: debezium-ui
+    image: debezium/debezium-ui:2.4
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CONNECT_URIS=http://dbz-connect:8083
+    depends_on:
+      - dbz-connect
+    networks:
+      - dbz-network
+networks:
+  dbz-network:
+    external: false
